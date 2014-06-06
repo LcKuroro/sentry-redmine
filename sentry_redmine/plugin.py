@@ -119,7 +119,11 @@ class RedminePlugin(IssuePlugin):
             #print >> sys.stderr, "RESP:", r.text
             raise forms.ValidationError('Unable to reach Redmine host: %s' % repr(e))
 
-        if not 'issue' in data or not 'id' in data['issue']:
+        # Validation errors:
+        if r.status_code == 422 and "errors" in data:
+            raise forms.ValidationError(data["errors"])
+
+        elif not 'issue' in data or not 'id' in data['issue']:
             raise forms.ValidationError('Unable to create redmine ticket')
 
         return data['issue']['id']
