@@ -63,16 +63,11 @@ class RedminePlugin(IssuePlugin):
         return 'Create Redmine Task'
 
     def _get_group_description(self, request, group, event):
-        output = [
-            'Sentry: %s' % request.build_absolute_uri(reverse('sentry-group', kwargs={
-                'project_id': group.project.slug,
-                'team_slug': group.team.slug,
-                'group_id': group.id,
-            })),
-        ]
-        output.append('\n* Server: @%s@' % event.server_name)
-        output.append('* Logger: @%s@' % event.logger)
-        output.append('* Level: @%s@' % event.level)
+        output = ['Sentry: %s' % request.build_absolute_uri(reverse('sentry-group', kwargs={
+            'project_id': group.project.slug,
+            'team_slug': group.team.slug,
+            'group_id': group.id,
+        })), '\n* Server: @%s@' % event.server_name, '* Logger: @%s@' % event.logger, '* Level: @%s@' % event.level]
 
         body = self._get_group_body(request, group, event)
         if body:
@@ -92,8 +87,8 @@ class RedminePlugin(IssuePlugin):
 
     def create_issue(self, group, form_data, **kwargs):
         """Create a Redmine issue"""
-        headers = { "X-Redmine-API-Key": self.get_option('key', group.project),
-                    'content-type': 'application/json' }
+        headers = {"X-Redmine-API-Key": self.get_option('key', group.project),
+                   'content-type': 'application/json'}
         url = urlparse.urljoin(self.get_option('host', group.project), "issues.json")
         payload = {
             'project_id': self.get_option('project_id', group.project),
@@ -102,25 +97,25 @@ class RedminePlugin(IssuePlugin):
             'subject': form_data['title'].encode('utf-8'),
             'description': form_data['description'].encode('utf-8'),
         }
-        #print >> sys.stderr, "url:", url
-        #print >> sys.stderr, "payload:\n", pformat(payload)
+        # print >> sys.stderr, "url:", url
+        # print >> sys.stderr, "payload:\n", pformat(payload)
         #print >> sys.stderr, pformat(group)
         #print >> sys.stderr, pformat(dir(group))
 
         try:
-            r = requests.post(url, data=json.dumps({'issue': payload}), headers=headers)
+            response = requests.post(url, data=json.dumps({'issue': payload}), headers=headers)
         except requests.exceptions.HTTPError as e:
             raise forms.ValidationError('Unable to reach Redmine host: %s' % repr(e))
 
         try:
-            data = json.loads(r.text)
+            data = json.loads(response.text)
         except json.JSONDecodeError as e:
             #print >> sys.stderr, "ERROR: %s" % e
             #print >> sys.stderr, "RESP:", r.text
             raise forms.ValidationError('Unable to reach Redmine host: %s' % repr(e))
 
         # Validation errors:
-        if r.status_code == 422 and "errors" in data:
+        if response.status_code == 422 and "errors" in data:
             raise forms.ValidationError(data["errors"])
 
         elif not 'issue' in data or not 'id' in data['issue']:
